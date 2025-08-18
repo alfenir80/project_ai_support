@@ -1,82 +1,95 @@
 
 import os
-from fastapi import FastAPI
 from dotenv import load_dotenv
+from fastapi import FastAPI
 from pydantic import BaseModel
 from typing import Dict, Any
 
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.tools import tool
 from langchain_openai import ChatOpenAI
 from langchain.agents import AgentExecutor, create_tool_calling_agent
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.tools import tool
 
+from fastapi.middleware.cors import CORSMiddleware
+
+# Carregar variáveis de ambiente
 load_dotenv()
 
-assert "OPENAI_API_KEY" in os.environ, "Please set the OPENAI_API_KEY environment variable."
+# Verificar se a chave da API do OpenAI está configurada
+assert os.getenv("OPENAI_API_KEY") is not None, "OPENAI_API_KEY deve ser configurada no seu arquivo .env"
 
-db_products = {
-    "phone1": {"name": "Phone Model A", "price": 299.99, "description": "A great phone with many features."},
-    "head'phones1": {"name": "Headphones Model B", "price": 89.99, "description": "Noise-cancelling headphones."},
-    "laptop1": {"name": "Laptop Model C", "price": 999.99, "description": "A powerful laptop for professionals."},
-    "politics": {
-        "guarantee": "We guarantee the best prices and quality.",
-        "return_policy": "You can return products within 30 days for a full refund.",
-        "customer_service": "Our customer service is available 24/7 to assist you with any inquiries.",     
-        "shipping_info": "We offer free shipping on orders over $50.",
-        "payment_methods": "We accept all major credit cards, PayPal, and bank transfers."    
+# --- Dados de Exemplo da Base de Conhecimento ---
+db_produtos = {
+    "telefone_modelo_a": {
+        "nome": "Smartphone Modelo A",
+        "preco": "R$ 1500",
+        "especificacoes": "Tela 6.1, 128GB, câmera 48MP"
+    },
+    "fone_modelo_b": {
+        "nome": "Fone de Ouvido Modelo B",
+        "preco": "R$ 350",
+        "especificacoes": "Cancelamento de ruído, bateria de 10h"
+    },
+    "politicas": {
+        "garantia": "Garantia de 1 ano contra defeitos de fabricação.",
+        "trocas": "Trocas podem ser solicitadas em até 30 dias após a compra."
     }
 }
 
+# --- Ferramenta para o Agente ---
 @tool
-def get_product_info(product_id: str) -> Dict[str, Any]:
+def get_product_info(query: str) -> Dict[str, Any]:
     """
-    Get information about a product by its ID.
+    Use esta ferramenta para obter informações sobre produtos ou políticas da loja.
+    Entrada deve ser uma string clara com o nome do produto ou tipo de política (ex: "garantia", "telefone_modelo_a").
     """
-    query = product_id.lower().replace("'", "_")
+    query_lower = query.lower().replace(" ", "_")
     
-    if query in db_products:
-        return db_products[query]
+    info = db_produtos.get(query_lower)
+    
+    if info:
+        return info
     else:
-        return {"error": f"Product {db_products[query]} not found."}  
-    
-    
+        return {"status": "não encontrado", "detalhes": f"Informação sobre '{query}' não encontrada na nossa base de dados."}
 
-model = ChatOpenAI(
-    model="gpt-4o",
-    temperature=0,
-    max_tokens=1000,
-    openai_api_key=os.environ["OPENAI_API_KEY"]
-)
-
-tool_names = [get_product_info]    
+# --- Configuração do Agente LangChain (fora da função) ---
+model = ChatOpenAI(model="gpt-4o", temperature=0)
+tools = [get_product_info]
 
 prompt = ChatPromptTemplate.from_messages(
     [
-        ("system", "You are a helpful assistant that provides product information."), 
+        ("system", "Você é um assistente de suporte ao cliente. Responda perguntas sobre produtos e políticas da loja. Use suas ferramentas para obter informações."),
         ("placeholder", "{chat_history}"),
-        ("user", "{input}"),
-        ("assistant", "Here is the information you requested: {output}"),
-        ("placeholder", "{agent_scratchpad}")
-    ] 
+        ("human", "{input}"),
+        ("placeholder", "{agent_scratchpad}"),
+    ]
 )
 
-agent = create_tool_calling_agent(
-    llm=model,
-    tools=tool_names,
-    prompt=prompt,  
-)  
+agent = create_tool_calling_agent(model, tools, prompt)
+agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 
+# --- Configuração da API FastAPI ---
 app = FastAPI()
+#Configuração do CORS (opcional, se necessário)
+# Configuração do CORS
+origins = ["http://localhost", "http://localhost:5173"]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
+# Definição do modelo de dados para a requisição de chat
 class Query(BaseModel):
-    input: str  
+    input: str
 
 @app.post("/query")
 async def query_agent(query: Query):
     """
-    Endpoint to query the agent with a product-related question.
+    Endpoint para consultar o agente com uma pergunta.
     """
-    agent_executor = AgentExecutor(agent=agent, tools=[get_product_info], verbose=True)
-    response = await agent_executor.arun(query.input)
+    response = await agent_executor.ainvoke({"input": query.input})
     
-    return {"response": response}
+    return {"response": response['output']}
