@@ -5,11 +5,20 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from typing import Dict, Any
 
+#importaçoes do RAG
+from langchain_community.document_loaders import TextLoader
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_openai import OpenAIEmbeddings
+from langchain_community.vectorstores import Chroma
+
+#impotaçoes do LangChain
 from langchain_openai import ChatOpenAI
 from langchain.agents import AgentExecutor, create_tool_calling_agent
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.tools import tool
-
+from langchain.chains.combine_documents import create_stuff_documents_chain
+from langchain.chains import create_retrieval_chain
+from langchain_core.runnables import RunnablePassthrough
 from fastapi.middleware.cors import CORSMiddleware
 
 # Carregar variáveis de ambiente
@@ -18,39 +27,37 @@ load_dotenv()
 # Verificar se a chave da API do OpenAI está configurada
 assert os.getenv("OPENAI_API_KEY") is not None, "OPENAI_API_KEY deve ser configurada no seu arquivo .env"
 
-# --- Dados de Exemplo da Base de Conhecimento ---
-db_produtos = {
-    "telefone_modelo_a": {
-        "nome": "Smartphone Modelo A",
-        "preco": "R$ 1500",
-        "especificacoes": "Tela 6.1, 128GB, câmera 48MP"
-    },
-    "fone_modelo_b": {
-        "nome": "Fone de Ouvido Modelo B",
-        "preco": "R$ 350",
-        "especificacoes": "Cancelamento de ruído, bateria de 10h"
-    },
-    "politicas": {
-        "garantia": "Garantia de 1 ano contra defeitos de fabricação.",
-        "trocas": "Trocas podem ser solicitadas em até 30 dias após a compra."
-    }
-}
+# --- Configuração da base de conhecimento RAG---
+
+# Carregar documentos
+loader = TextLoader('docs/produtos.txt', encoding='utf-8')
+
+documents = loader.load()
+# Dividir documentos em pedaços menores
+text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
+splits = text_splitter.split_documents(documents)
+
+# Criar embeddings
+embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
+# Criar vetor de armazenamento
+vectorstore = Chroma.from_documents(splits, embeddings, collection_name="produtos")
+# Criar cadeia de recuperação
+retriever = vectorstore.as_retriever(search_type="similarity", search_kwargs={"k": 3})
+
+
 
 # --- Ferramenta para o Agente ---
 @tool
 def get_product_info(query: str) -> Dict[str, Any]:
     """
-    Use esta ferramenta para obter informações sobre produtos ou políticas da loja.
-    Entrada deve ser uma string clara com o nome do produto ou tipo de política (ex: "garantia", "telefone_modelo_a").
+    Ferramenta para buscar informações sobre produtos na base de conhecimento.
     """
-    query_lower = query.lower().replace(" ", "_")
-    
-    info = db_produtos.get(query_lower)
-    
-    if info:
-        return info
-    else:
-        return {"status": "não encontrado", "detalhes": f"Informação sobre '{query}' não encontrada na nossa base de dados."}
+    # Criar cadeia de recuperação
+    retriever_docs = retriever.invoke(query)
+
+   #formatar os documentos recuperados
+    formatted_docs = "\n".join([doc.page_content for doc in retriever_docs])
+    return {"status": "success", "docs": formatted_docs}
 
 # --- Configuração do Agente LangChain (fora da função) ---
 model = ChatOpenAI(model="gpt-4o", temperature=0)

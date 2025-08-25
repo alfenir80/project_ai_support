@@ -1,0 +1,11 @@
+INFORMACOES DA LOJA
+---
+PRODUTOS
+- Smartphone Modelo A: Preço R$ 1500. Tela 6.1", 128GB de armazenamento, câmera 48MP. Ideal para fotos e jogos.
+- Fone de Ouvido Modelo B: Preço R$ 350. Bateria de 10h, cancelamento de ruído ativo. Perfeito para viagens.
+- Smartwatch Modelo C: Preço R$ 800. Monitora batimentos cardíacos e passos. Resistente à água.
+
+POLITICAS
+- Trocas: Trocas podem ser solicitadas em até 30 dias após a compra, desde que o produto esteja na embalagem original e sem sinais de uso.
+- Garantia: Todos os nossos produtos têm garantia de 1 ano contra defeitos de fabricação.
+- Envio: O envio padrão leva de 5 a 7 dias úteis. Oferecemos envio expresso em 2 dias úteis por uma taxa adicional.
