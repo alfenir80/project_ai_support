@@ -19,6 +19,9 @@ from langchain_core.tools import tool
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain.chains import create_retrieval_chain
 from langchain_core.runnables import RunnablePassthrough
+from langchain_core.runnables.history import RunnableWithMessageHistory
+from langchain_core.chat_history import BaseMessage, AIMessage, HumanMessage
+
 from fastapi.middleware.cors import CORSMiddleware
 
 # Carregar variáveis de ambiente
@@ -75,6 +78,22 @@ prompt = ChatPromptTemplate.from_messages(
 agent = create_tool_calling_agent(model, tools, prompt)
 agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 
+store = {}
+
+def get_chat_history(user_id: str) -> BaseMessage:
+    if user_id not in store:
+        store[user_id] = []
+    return store[user_id]
+
+with_history = RunnableWithMessageHistory(
+    agent_executor,
+    get_chat_history,
+    input_messages_key="input",
+    history_messages_key="chat_history",
+    return_messages=True,
+)
+
+
 # --- Configuração da API FastAPI ---
 app = FastAPI()
 #Configuração do CORS (opcional, se necessário)
@@ -97,6 +116,7 @@ async def query_agent(query: Query):
     """
     Endpoint para consultar o agente com uma pergunta.
     """
-    response = await agent_executor.ainvoke({"input": query.input})
+    response = await agent_executor.ainvoke({"input": query.input},
+                                            config = {"configurable" : {"user_id": "foo"}})
     
     return {"response": response['output']}
