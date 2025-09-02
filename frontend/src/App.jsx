@@ -1,10 +1,21 @@
-import { useState } from "react";
+import { v4 as uuidv4 } from 'uuid';
+import { useState, useEffect} from "react";
 import './App.css';
 
 function App() {
 
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
+  const [sessionId, setSessionId] = useState(uuidv4());
+
+  useEffect(() => {
+    const storedSessionId = localStorage.getItem("sessionId");
+    if (storedSessionId) {
+      setSessionId(storedSessionId);
+    } else {
+      localStorage.setItem("sessionId", sessionId);
+    }
+  }, []);
 
   const handleSendMessage = async(e) => {
 
@@ -14,7 +25,6 @@ function App() {
     const userMessage = { text: input, sender: "user" };
     setMessages(prevMessages => [...prevMessages, userMessage]);
 
-    setInput("");
 
     try {
 
@@ -24,7 +34,9 @@ function App() {
           "Content-Type": "application/json"
         },
         // CORRIGIDO: Agora usa a chave 'input'
-        body: JSON.stringify({ input: input })
+        body: JSON.stringify({ input: input,
+                      session_id: sessionId   
+                                            })
       });
 
       if (!response.ok) {
@@ -42,12 +54,16 @@ function App() {
       const errorMessage = { text: "Error: Unable to get response from server.", sender: "bot" };
       setMessages(prevMessages => [...prevMessages, errorMessage]);
     }
+
+    setInput("");
   }; 
   
   return (
     <div className="App">
       <div className="chat-container">
         <div className="messages">
+          {messages.length === 0 && 
+          <div className="welcome-messages">No messages yet. Start the conversation!</div>}
           {messages.map((msg, index) => (
             <div key={index} className={`message ${msg.sender}`}>
               {msg.text}
