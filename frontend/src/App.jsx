@@ -17,25 +17,26 @@ function getSessionId() {
 
 function App() {
   // Estados da aplicação
-  const [sessionId] = useState(getSessionId());
+  // O sessionId é gerado uma única vez
+  const [sessionId] = useState(getSessionId()); 
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [file, setFile] = useState(null);
   const [isLoading, setIsLoading] = useState(false); // Para indicar carregamento
 
-  // Manipulador de mudança de arquivo
+  // CORRIGIDO: Esta função deve apenas armazenar o arquivo selecionado
   const handleFileChange = (e) => {
     setFile(e.target.files[0]);
   };
 
-  // Manipulador para enviar mensagens de texto
+  // Funções de envio de mensagem e upload de arquivo separadas
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!input.trim()) return;
 
     const userMessage = { id: uuidv4(), text: input, sender: "user" };
     setMessages((prevMessages) => [...prevMessages, userMessage]);
-    setIsLoading(true); // Indica que está carregando
+    setIsLoading(true);
 
     try {
       const response = await fetch("http://127.0.0.1:8000/query", {
@@ -65,13 +66,11 @@ function App() {
       };
       setMessages((prevMessages) => [...prevMessages, errorMessage]);
     } finally {
-      setIsLoading(false); // Para de indicar carregamento
+      setIsLoading(false);
+      setInput("");
     }
-
-    setInput("");
   };
 
-  // Manipulador para enviar o arquivo
   const handleFileUpload = async () => {
     if (!file) {
       setMessages((prevMessages) => [
@@ -82,7 +81,8 @@ function App() {
     }
 
     const formData = new FormData();
-    formData.append("session_id", sessionId);
+    // CORRIGIDO: Adicionar o session_id ao formData
+    formData.append("session_id", sessionId); 
     formData.append("file", file);
 
     setMessages((prevMessages) => [
@@ -103,14 +103,14 @@ function App() {
 
       const result = await response.json();
       setMessages((prevMessages) => {
-        const newMessages = prevMessages.slice(0, -1); // Remove a última mensagem (o "enviando...")
+        const newMessages = prevMessages.slice(0, -1);
         return [...newMessages, { id: uuidv4(), text: result.message, sender: "bot" }];
       });
       setFile(null); // Limpa o estado do arquivo
     } catch (error) {
       console.error("Error uploading file:", error);
       setMessages((prevMessages) => {
-        const newMessages = prevMessages.slice(0, -1); // Remove a última mensagem
+        const newMessages = prevMessages.slice(0, -1);
         return [
           ...newMessages,
           { id: uuidv4(), text: "Ocorreu um erro ao enviar o arquivo.", sender: "bot" },
@@ -121,18 +121,17 @@ function App() {
     }
   };
 
-  // Extracted variable for send button disabled state
   const isSendButtonDisabled = !input.trim() || isLoading;
 
   return (
-    <div className="container mt-4"> {/* Bootstrap: container para centralizar e adicionar margem */}
-      <h1 className="text-center mb-4">Assistente de Suporte IA</h1> {/* Bootstrap: centralizar texto e adicionar margem */}
+    <div className="container mt-4">
+      <h1 className="text-center mb-4">Assistente de Suporte IA</h1>
 
-      <div className="chat-window card mb-4"> {/* Bootstrap: card para um visual de caixa */}
-        <div className="card-body d-flex flex-column"> {/* Bootstrap: flex column para mensagens */}
+      <div className="chat-window card mb-4">
+        <div className="card-body d-flex flex-column">
           {messages.length === 0 && !isLoading && (
             <div className="welcome-message text-center text-muted flex-grow-1 d-flex align-items-center justify-content-center">
-              <p className="lead">Faça o upload de um documento PDF e comece a fazer perguntas!</p> {/* Bootstrap: estilo de lead para texto maior */}
+              <p className="lead">Faça o upload de um documento PDF e comece a fazer perguntas!</p>
             </div>
           )}
           {isLoading && (
@@ -143,19 +142,17 @@ function App() {
             </div>
           )}
           {messages.map((msg) => (
-            <div key={msg.id} className={`message ${msg.sender} mb-2`}> {/* Adicionada margem inferior */}
+            <div key={msg.id} className={`message ${msg.sender} mb-2`}>
               {msg.text}
             </div>
           ))}
         </div>
       </div>
 
-      {/* Formulário de Input e Upload com classes Bootstrap */}
-      <div className="input-area card p-3"> {/* Bootstrap: card e padding */}
-        <div className="row g-2 align-items-center"> {/* Bootstrap: row e col para layout responsivo */}
+      <div className="input-area card p-3">
+        <div className="row g-2 align-items-center">
 
-          {/* Upload de Arquivo */}
-          <div className="col-auto"> {/* Bootstrap: coluna que se ajusta ao conteúdo */}
+          <div className="col-auto">
             <label htmlFor="file-input" className="btn btn-outline-primary me-2 custom-file-upload-label">
               Escolher PDF
             </label>
@@ -164,13 +161,11 @@ function App() {
               type="file"
               onChange={handleFileChange}
               className="file-input-hidden"
-              accept=".pdf" // Opcional: só permite arquivos PDF
+              accept=".pdf"
             />
-            {file && <span className="file-name text-muted me-2">{file.name}</span>} {/* Bootstrap: texto em mute e margem */}
+            {file && <span className="file-name text-muted me-2">{file.name}</span>}
           </div>
-          <div className="col-auto"> {/* Bootstrap: coluna que se ajusta ao conteúdo */}
-            {/* Bootstrap: botão primário com margem */}
-            {/* Desabilita se não houver arquivo ou se estiver carregando */}
+          <div className="col-auto">
             <button
               type="button"
               onClick={handleFileUpload}
@@ -181,10 +176,7 @@ function App() {
             </button>
           </div>
 
-          {/* Input de Mensagem e Botão de Envio */}
-          <div className="col"> {/* Bootstrap: coluna que ocupa o espaço restante */}
-            {/* Bootstrap: input padrão com margem */}
-            {/* Desabilita enquanto carrega */}
+          <div className="col">
             <input
               type="text"
               value={input}
@@ -194,9 +186,7 @@ function App() {
               disabled={isLoading}
             />
           </div>
-          <div className="col-auto"> {/* Bootstrap: coluna que se ajusta ao conteúdo */}
-            {/* Bootstrap: botão de sucesso */}
-            {/* Desabilita se input vazio ou carregando */}
+          <div className="col-auto">
             <button
               type="submit"
               onClick={handleSendMessage}
@@ -211,6 +201,5 @@ function App() {
     </div>
   );
 }
-      
 
 export default App;
