@@ -34,7 +34,7 @@ function App() {
     e.preventDefault();
     if (!input.trim()) return;
 
-    const userMessage = { id: uuidv4(), text: input, sender: "user" };
+    const userMessage = { id: sessionId, text: input, sender: "user" };
     setMessages((prevMessages) => [...prevMessages, userMessage]);
     setIsLoading(true);
 
@@ -55,12 +55,12 @@ function App() {
       }
 
       const data = await response.json();
-      const botMessage = { id: uuidv4(), text: data.response, sender: "bot" };
+      const botMessage = { id: sessionId, text: data.response, sender: "bot" };
       setMessages((prevMessages) => [...prevMessages, botMessage]);
     } catch (error) {
       console.error("Error fetching data:", error);
       const errorMessage = {
-        id: uuidv4(),
+        id: sessionId,
         text: "Ocorreu um erro ao obter a resposta do servidor.",
         sender: "bot",
       };
@@ -75,7 +75,7 @@ function App() {
     if (!file) {
       setMessages((prevMessages) => [
         ...prevMessages,
-        { id: uuidv4(), text: "Por favor, selecione um arquivo para enviar.", sender: "bot" },
+        { id: sessionId, text: "Por favor, selecione um arquivo para enviar.", sender: "bot" },
       ]);
       return;
     }
@@ -87,7 +87,7 @@ function App() {
 
     setMessages((prevMessages) => [
       ...prevMessages,
-      { id: uuidv4(), text: `Enviando arquivo: ${file.name}...`, sender: "bot" },
+      { id: sessionId, text: `Enviando arquivo: ${file.name}...`, sender: "bot" },
     ]);
     setIsLoading(true);
 
@@ -104,7 +104,7 @@ function App() {
       const result = await response.json();
       setMessages((prevMessages) => {
         const newMessages = prevMessages.slice(0, -1);
-        return [...newMessages, { id: uuidv4(), text: result.message, sender: "bot" }];
+        return [...newMessages, { id: sessionId, text: result.message, sender: "bot" }];
       });
       setFile(null); // Limpa o estado do arquivo
     } catch (error) {
@@ -113,7 +113,7 @@ function App() {
         const newMessages = prevMessages.slice(0, -1);
         return [
           ...newMessages,
-          { id: uuidv4(), text: "Ocorreu um erro ao enviar o arquivo.", sender: "bot" },
+          { id: sessionId, text: "Ocorreu um erro ao enviar o arquivo.", sender: "bot" },
         ];
       });
     } finally {
