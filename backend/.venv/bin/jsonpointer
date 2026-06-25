@@ -1,5 +1,4 @@
-#!/home/fabricio/projects/proiect-ai-support/backend/.venv/bin/python3.11
-# -*- coding: utf-8 -*-
+#!/home/fabricio/projeto_prog/project_ai_support/backend/.venv/bin/python3
 
 
 import argparse

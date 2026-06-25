@@ -5,3 +5,7 @@ pydantic
 python-dotenv
 requests
 langchain
+langchain-community
+PyMuPDF
+chromadb
+redis
